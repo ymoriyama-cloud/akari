@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>動画診断</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:0;padding:16px;background:#fff;color:#222;font-size:15px;line-height:1.7;}
+  h1{font-size:17px;margin:0 0 4px;}
+  p.note{font-size:13px;color:#666;margin:0 0 16px;}
+  video{width:100%;max-width:520px;background:#000;display:block;}
+  #log{
+    margin-top:14px;padding:12px;background:#F4F6F8;border:1px solid #DDE2E6;border-radius:8px;
+    font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.75;
+    white-space:pre-wrap;word-break:break-all;
+  }
+  .ok{color:#1B7A3D;} .ng{color:#B4472E;}
+  button{
+    min-height:46px;padding:0 18px;margin:12px 8px 0 0;font-size:14px;
+    border:1px solid #CCD3D8;border-radius:8px;background:#fff;cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<h1>動画の診断</h1>
+<p class="note">灯珈琲店LPと同じ動画ファイルを、装飾なしで再生します。</p>
+
+<video id="v"
+  src="https://wadfppltrasrelpxidab.supabase.co/storage/v1/object/public/lp-assets/akari/hero.mp4"
+  muted autoplay loop playsinline controls preload="auto"></video>
+
+<button type="button" onclick="tryPlay()">再生を試す</button>
+<button type="button" onclick="dump()">状態を再取得</button>
+
+<div id="log">読み込み中…</div>
+
+<script>
+var v = document.getElementById('v');
+var log = document.getElementById('log');
+var lines = [];
+
+function add(s, cls){
+  lines.push(cls ? '<span class="'+cls+'">'+s+'</span>' : s);
+  log.innerHTML = lines.join('\n');
+}
+
+var NET = ['0 EMPTY','1 IDLE','2 LOADING','3 NO_SOURCE'];
+var RDY = ['0 なし','1 メタデータのみ','2 現在フレームのみ','3 一部再生可','4 十分'];
+var ERR = {1:'1 中断された',2:'2 ネットワークエラー',3:'3 デコードできない',4:'4 形式が非対応またはURL不正'};
+
+function dump(){
+  add('--- 状態 ---');
+  add('H.264対応: ' + (v.canPlayType('video/mp4; codecs="avc1.640029"') || '(空＝非対応)'),
+      v.canPlayType('video/mp4; codecs="avc1.640029"') ? 'ok' : 'ng');
+  add('networkState: ' + (NET[v.networkState] || v.networkState));
+  add('readyState: ' + (RDY[v.readyState] || v.readyState));
+  add('解像度: ' + v.videoWidth + ' x ' + v.videoHeight);
+  add('長さ: ' + (isNaN(v.duration) ? '不明' : v.duration.toFixed(1) + '秒'));
+  add('paused: ' + v.paused);
+  add('muted: ' + v.muted + ' / volume: ' + v.volume);
+  add('currentTime: ' + v.currentTime.toFixed(2));
+  add('error: ' + (v.error ? (ERR[v.error.code] || v.error.code) + ' / ' + v.error.message : 'なし'),
+      v.error ? 'ng' : 'ok');
+}
+
+function tryPlay(){
+  add('--- play() 実行 ---');
+  var p = v.play();
+  if (p && p.then){
+    p.then(function(){ add('play() 成功', 'ok'); dump(); })
+     .catch(function(e){ add('play() 拒否: ' + e.name + ' / ' + e.message, 'ng'); dump(); });
+  } else {
+    add('play() はPromiseを返さない古い実装');
+    dump();
+  }
+}
+
+['loadedmetadata','canplay','playing','pause','stalled','suspend','error','waiting'].forEach(function(ev){
+  v.addEventListener(ev, function(){ add('event: ' + ev); });
+});
+
+window.addEventListener('load', function(){
+  lines = [];
+  add('UA: ' + navigator.userAgent);
+  dump();
+  setTimeout(function(){ add('--- 3秒後 ---'); dump(); }, 3000);
+});
+</script>
+</body>
+</html>
